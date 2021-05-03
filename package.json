@@ -1,0 +1,13 @@
+{
+  "name": "node_manuel",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/ahmadXtn/node_manuel.git",
+  "author": "ahmadXtn <Ahmed.Bouazizi@issatmh.u-monastir.tn>",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^0.21.1",
+    "html-pdf-node": "^1.0.7"
+  }
+}
