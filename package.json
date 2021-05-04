@@ -8,6 +8,7 @@
   "type": "commonjs",
   "dependencies": {
     "axios": "^0.21.1",
-    "html-pdf-node": "^1.0.7"
+    "html-pdf-node": "^1.0.7",
+    "wkhtmltopdf": "^0.3.4"
   }
 }
