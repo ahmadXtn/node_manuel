@@ -10,6 +10,8 @@
     "autoprefixer": "^10.2.5",
     "axios": "^0.21.1",
     "html-pdf-node": "^1.0.7",
+    "postcss": "^8.2.13",
+    "precss": "^4.0.0",
     "wkhtmltopdf": "^0.3.4"
   }
 }

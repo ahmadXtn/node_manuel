@@ -1,21 +1,24 @@
 'use strict';
 const util = require('util');
-const execSync = require('child_process').execSync;
+const execSync = util.promisify(require('child_process').execSync);
 const exec = util.promisify(require('child_process').exec);
 const axios = require('axios').default;
-const path=require('path');
+const path = require('path');
+const autoprefixer = require('autoprefixer')
+const postcss = require('postcss')
+const fs = require("fs");
 
 
-const jsonData = 'https://storage.libmanuels.fr/Delagrave/specimen/9782206309071/1/META-INF/interactives.json';
+const jsonUrl = 'https://storage.libmanuels.fr/Delagrave/specimen/9782206309071/1/META-INF/interactives.json';
 const file = {
-	baseURLrl: 'https://storage.libmanuels.fr/Delagrave/specimen/9782206309071/1/OEBPS/'
+	baseUrl: 'https://storage.libmanuels.fr/Delagrave/specimen/9782206309071/1/OEBPS/',
+	cssBaseUrl: 'https://storage.libmanuels.fr/Delagrave/specimen/9782206309071/1/OEBPS/css/cover.css'
 }
 
 
-const customStyleSheet = path.resolve('css/custom.css');
 
 
-axios.get(jsonData, {})
+axios.get(jsonUrl, {})
 	.then((res) => {
 		let page = res.data.pages.page;
 		let pageIterator = page.values();
@@ -23,18 +26,40 @@ axios.get(jsonData, {})
 
 		while (!result.done) {
 			let src = result.value.attributes.src;
-			execSync(`wkhtmltopdf --user-style-sheet ${customStyleSheet} --no-stop-slow-scripts -s A3  ${file.baseURLrl}${src} download/9782206307909/${src.substring(0, src.length - 5)}pdf`);
+			let styleRef = "Styles".concat(src.split('.')[0].replace(/[^0-9]/g, ''));
+			if (styleRef === "Styles") {
+				execSync(`wkhtmltopdf  -s A3  ${file.baseUrl}${src} download/9782206307909/${src.substring(0, src.length - 5)}pdf`);
+			}
+			axios.get(`https://storage.libmanuels.fr/Delagrave/specimen/9782206309071/1/OEBPS/css/${styleRef}.css`, {})
+				.then((res) => {
+					postcss([
+						autoprefixer({overrideBrowserslist: ['last 1 version']})])
+						.process(res.data, {
+							from: undefined
+						})
+						.then(result => {
+							fs.writeFileSync(`css/${styleRef}.css`, result.css,(err)=>{
+								if (err) console.log(err)
+							});
+							const customStyleSheet = path.resolve(`css/${styleRef}.css`);
+							execSync(`wkhtmltopdf --user-style-sheet ${customStyleSheet}  -s A3  ${file.baseUrl}${src} download/9782206307909/${src.substring(0, src.length - 5)}pdf`);
+						})
+						.catch(err=>console.log('failed to load style'))
+				});
+
+
 			/**
 			 * High Memory Usage
 			 * Multiple wkhtmltopdf instance Running Simultaneously
-			 * fast downloading
 			const { stdout, stderr } =  exec(`wkhtmltopdf --page-size A3  ${file.baseURLrl}${src} download/9782206307909/${src.substring(0, src.length - 5)}pdf`);
 			 */
 			result = pageIterator.next();
 		}
+
 	});
 
 
-
-
+function getJsonData() {
+	return axios.get(jsonUrl);
+}
 
