@@ -7,6 +7,7 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
+    "autoprefixer": "^10.2.5",
     "axios": "^0.21.1",
     "html-pdf-node": "^1.0.7",
     "wkhtmltopdf": "^0.3.4"
