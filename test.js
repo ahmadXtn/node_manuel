@@ -8,6 +8,8 @@ const postcss = require('postcss');
 const https = require('https');
 const {exists, writeFileSync,writeFile} = require("fs");
 const fetch = require('node-fetch');
+const HttpProxyAgent = require('http-proxy-agent');
+const url = require('url');
 
 const jsonUrl = 'https://storage.libmanuels.fr/Delagrave/specimen/9782206309071/1/META-INF/interactives.json';
 const file = {
@@ -61,9 +63,26 @@ function getCssRef(srcRefs) {
 
 async function cssAutoprefixerOutput(cssUrl,index) {
 
-	const response = await fetch(cssUrl);
+	const pURL = new URL(cssUrl);
+
+	const options={
+		host:pURL.host,
+		port:443,
+		path:pURL.href,
+		method: 'GET',
+		headers: {
+			Host: pURL.hostname
+		}
+	}
+
+	const response = await fetch(cssUrl,options);
+
+	//console.log(response.headers);
+	//process.exit()
+
 	let data = await response.text();
 
+	setTimeout(()=>{},3000);
 	if (!response.ok) {
 		throw new Error(`HTTP error! status: ${response.status}`);
 	}
