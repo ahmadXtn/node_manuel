@@ -10,11 +10,16 @@
     "async": "^3.2.0",
     "autoprefixer": "^10.2.5",
     "axios": "^0.21.1",
-    "html-pdf-node": "^1.0.7",
+    "commander": "^7.2.0",
+    "http-parser-js": "^0.5.3",
     "http-proxy-agent": "^4.0.1",
+    "inquirer": "^8.0.0",
     "node-fetch": "^2.6.1",
     "postcss": "^8.2.13",
     "precss": "^4.0.0",
     "wkhtmltopdf": "^0.3.4"
+  },
+  "volta": {
+    "node": "12.22.1"
   }
 }

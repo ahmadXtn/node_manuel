@@ -1,102 +1,148 @@
 'use strict';
-const util = require('util');
+
 const execSync = require('child_process').execSync;
-const exec = util.promisify(require('child_process').exec);
-const path = require('path');
 const autoprefixer = require('autoprefixer');
 const postcss = require('postcss');
 const https = require('https');
-const {exists, writeFileSync} = require("fs");
+const {writeFile} = require("fs");
+const fetch = require('node-fetch');
+const fs = require('fs');
+const inquirer = require('inquirer')
 
 
-const file = {
-	htmlBaseUrl: 'https://storage.libmanuels.fr/Delagrave/specimen/9782206309071/1/OEBPS/',
-	cssBaseUrl: 'https://storage.libmanuels.fr/Delagrave/specimen/9782206309071/1/OEBPS/css/'
-}
-const options = new URL('https://storage.libmanuels.fr/Delagrave/specimen/9782206309071/1/META-INF/interactives.json');
+inquirer
+	.prompt([
+		{
+			name: 'json',
+			message: 'Enter Json Url',
+		},
+		{
+			type: 'list',
+			name: 'choice',
+			message: 'CSS OR PDF',
+			choices: ['CSS', 'PDF'],
+		},
+	])
+	.then(answers => {
+		const jsonUrl = new URL(answers.json);
+		const sPathName = jsonUrl.pathname.split('/');
+		const eanId = sPathName[3];
+		const eanVersion = sPathName[4];
+		const editor = sPathName[1];
 
-let targetCss = path.resolve(`css/out.css`)
+
+		const targetJsonUrl = `https://storage.libmanuels.fr/${editor}/specimen/${eanId}/${eanVersion}/META-INF/interactives.json`;
+
+		const file = {
+			baseUrl: `https://storage.libmanuels.fr/${editor}/specimen/${eanId}/${eanVersion}/OEBPS/`,
+		}
 
 
-https.get(options, (resp) => {
-	let data = '';
-	// A chunk of data has been received.
-	resp.on('data', (chunk) => {
-		data += chunk.toString();
-	});
-	// The whole response has been received. Print out the result.
-	resp.on('end', () => {
-		let pages = JSON.parse(data).pages;
-		let page = pages.page;
-		let pageIterator = page.values();
-		let result = pageIterator.next();
-		for (let elm of page) {
-			let src = elm.attributes.src;
-			let styleRef = src.split('.')[0].replace(/[^0-9]/g, '');
-			let cssTargetUrl = `${file.cssBaseUrl}Styles${styleRef}.css`;
+		async function main() {
+			const stylesUrls = await getCssStyleUrl(file.baseUrl, getPagesInfos);
+			const htmlUrls = await getHtmlUrls(file.baseUrl);
 
-			if (styleRef === "") {
-				styleRef = "cover"
-				cssTargetUrl = `${file.cssBaseUrl}${styleRef}.css`;
+			if (!(fs.existsSync(`download/${eanId}`) && fs.existsSync(`css/${eanId}`))) {
+				fs.mkdir(`download/${eanId}`, {}, (err) => {
+					if (!err) console.log("Id folder created");
+				});
+				fs.mkdir(`css/${eanId}`, {}, (err) => {
+					if (!err) console.log("css folder created");
+				});
 			}
-			getStyleSheet(cssTargetUrl, styleRef, src);
+
+			stylesUrls.forEach((elm, index) => {
+				if (answers.choice.toLowerCase() === "css") {
+					saveCssPref(elm, index);
+				} else if (answers.choice.toLowerCase() === "pdf") {
+					execSync(`wkhtmltopdf   --user-style-sheet css/${eanId}/${index}.css  -s A3  ${htmlUrls[index]} download/${eanId}/${index}.pdf`);
+				}
+
+			})
 
 		}
-		/*
-		while (!result.done) {
-			let src = result.value.attributes.src;
-			let styleRef = src.split('.')[0].replace(/[^0-9]/g, '');
-			let targetUrl = `${file.cssBaseUrl}Styles${styleRef}.css`;
 
-			if (styleRef === "") {
-				styleRef = "cover"
-				targetUrl = `${file.cssBaseUrl}${styleRef}.css`;
+		async function getPagesInfos(jsonUrl) {
+			let data;
+			let response = await fetch(jsonUrl);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
 			}
+			data = await response.json();
+			return data.pages.page;
+		}
 
+		function pageSrcRefs(page) {
+			return page.map(({attributes}) => attributes.src);
+		}
 
-			result = pageIterator.next();
-		}*/
-	});
-}).on("error", (err) => {
-	console.log("Error: de" + err.message);
-});
+		function getCssRef(srcRefs) {
+			const regex = /[^0-9]/g;
+			return srcRefs.map(elm => {
+				return elm.split('.')[0].replace(regex, '');
+			})
+		}
 
- function getStyleSheet(url, styleRef, src) {
-	const options = new URL(url);
-	const cssPath = path.resolve(`css/${styleRef}.css`);
-	let htmlTargetUrl = `${file.htmlBaseUrl}${src}`;
+		async function getHtmlUrls(baseUrl) {
+			const page = await getPagesInfos(targetJsonUrl);
+			const pageRef = pageSrcRefs(page);
 
-	https.get(options, (resp) => {
-		let data = '';
-		// A chunk of data has been received.
-		resp.on('data', (chunk) => {
-			data += chunk.toString();
-		});
-		// The whole response has been received. Print out the result.
-		resp.on('end', async (path, callback) => {
+			return pageRef.map(ref => {
+				if (ref === "") {
+					ref = "cover"
+					return `${baseUrl}${ref}`
+				}
+				return `${baseUrl}${ref}`
+			});
+		}
+
+		async function getCssStyleUrl(cssBaseUrl) {
+			const page = await getPagesInfos(targetJsonUrl);
+			const pageRef = pageSrcRefs(page);
+			const cssRef = getCssRef(pageRef);
+
+			return cssRef.map(ref => {
+				if (ref === "") {
+					ref = "cover"
+					return `${cssBaseUrl}css/${ref}.css`
+				}
+				return `${cssBaseUrl}css/Styles${ref}.css`
+			});
+		}
+
+		async function saveCssPref(cssUrl, index) {
+
+			const httpsAgent = new https.Agent({
+				keepAlive: true,
+				rejectUnauthorized: false,
+				strictSSL: false,
+			});
+
+			const options = {agent: httpsAgent}
+			const response = await fetch(cssUrl, options);
+			let data = await response.text();
+
 			await postcss([
 				autoprefixer({overrideBrowserslist: ['last 1 version']})])
 				.process(data, {
 					from: undefined
 				})
 				.then(result => {
-					try {
-						writeFileSync(`css/${styleRef}.css`, result.css, {});
-					}catch (e){console.log(e)}
-					console.log("css processing done!");
-					//execSync(`wkhtmltopdf --user-style-sheet ${cssPath}  -s A3  ${htmlTargetUrl} download/9782206307909/${styleRef}.pdf`);
+					writeFile(`css/${eanId}/${index}.css`, result.css, {}, () => {
+						console.log("css processing done!");
+					});
 				})
-				.catch(err => console.log('failed to load style'));
-		});
-	}).on("error", (err) => {
-		console.log("Error: de" + err.message);
+			return `css/${eanId}/${index}.css`;
+		}
+
+
+		main().catch(err => console.log(err));
+
 	});
 
-}
 
 
 
-async function processCss(cssUrl) {
 
-}
+
 
