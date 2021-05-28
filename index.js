@@ -47,29 +47,31 @@ inquirer
 			if (answers.choice.toLowerCase() === "css") {
 				if (!(fs.existsSync(`css/${eanId}`))) {
 					fs.mkdir(`css/${eanId}`, {}, (err) => {
-						if (!err) console.log("Id folder created");
+						if (!err) console.log("Css folder created");
+						stylesUrls.forEach((elm, index) => {
+							saveCssPref(elm, index);
+						});
 					});
 				} else {
 					console.log('css folder exist');
 					return;
 				}
 
-				stylesUrls.forEach((elm, index) => {
-					saveCssPref(elm, index);
-				});
+			
 
 			} else if (answers.choice.toLowerCase() === "pdf") {
 				if (!(fs.existsSync(`download/${eanId}`))) {
 					fs.mkdir(`download/${eanId}`, {}, (err) => {
-						if (!err) console.log("Id folder created");
+						if (!err) console.log("PDF folder created");
+						stylesUrls.forEach((elm, index) => {
+							execSync(`wkhtmltopdf   --user-style-sheet css/${eanId}/${index}.css  -s A3  ${htmlUrls[index]} download/${eanId}/${index}.pdf`);
+						});
 					});
 				} else {
 					console.log('pdf folder exist');
 					return;
 				}
-				stylesUrls.forEach((elm, index) => {
-					execSync(`wkhtmltopdf   --user-style-sheet css/${eanId}/${index}.css  -s A3  ${htmlUrls[index]} download/${eanId}/${index}.pdf`);
-				});
+			
 			}
 
 
