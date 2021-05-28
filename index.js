@@ -4,7 +4,7 @@ const execSync = require('child_process').execSync;
 const autoprefixer = require('autoprefixer');
 const postcss = require('postcss');
 const https = require('https');
-const {writeFile} = require("fs");
+const { writeFile } = require("fs");
 const fetch = require('node-fetch');
 const fs = require('fs');
 const inquirer = require('inquirer')
@@ -29,12 +29,13 @@ inquirer
 		const eanId = sPathName[3];
 		const eanVersion = sPathName[4];
 		const editor = sPathName[1];
+		const type = sPathName[2];
 
 
-		const targetJsonUrl = `https://storage.libmanuels.fr/${editor}/specimen/${eanId}/${eanVersion}/META-INF/interactives.json`;
+		const targetJsonUrl = `https://storage.libmanuels.fr/${editor}/${type}/${eanId}/${eanVersion}/META-INF/interactives.json`;
 
 		const file = {
-			baseUrl: `https://storage.libmanuels.fr/${editor}/specimen/${eanId}/${eanVersion}/OEBPS/`,
+			baseUrl: `https://storage.libmanuels.fr/${editor}/${type}/${eanId}/${eanVersion}/OEBPS/`,
 		}
 
 
@@ -42,23 +43,36 @@ inquirer
 			const stylesUrls = await getCssStyleUrl(file.baseUrl, getPagesInfos);
 			const htmlUrls = await getHtmlUrls(file.baseUrl);
 
-			if (!(fs.existsSync(`download/${eanId}`) && fs.existsSync(`css/${eanId}`))) {
-				fs.mkdir(`download/${eanId}`, {}, (err) => {
-					if (!err) console.log("Id folder created");
+
+			if (answers.choice.toLowerCase() === "css") {
+				if (!(fs.existsSync(`css/${eanId}`))) {
+					fs.mkdir(`css/${eanId}`, {}, (err) => {
+						if (!err) console.log("Id folder created");
+					});
+				} else {
+					console.log('css folder exist');
+					return;
+				}
+
+				stylesUrls.forEach((elm, index) => {
+					saveCssPref(elm, index);
 				});
-				fs.mkdir(`css/${eanId}`, {}, (err) => {
-					if (!err) console.log("css folder created");
+
+			} else if (answers.choice.toLowerCase() === "pdf") {
+				if (!(fs.existsSync(`download/${eanId}`))) {
+					fs.mkdir(`download/${eanId}`, {}, (err) => {
+						if (!err) console.log("Id folder created");
+					});
+				} else {
+					console.log('pdf folder exist');
+					return;
+				}
+				stylesUrls.forEach((elm, index) => {
+					execSync(`wkhtmltopdf   --user-style-sheet css/${eanId}/${index}.css  -s A3  ${htmlUrls[index]} download/${eanId}/${index}.pdf`);
 				});
 			}
 
-			stylesUrls.forEach((elm, index) => {
-				if (answers.choice.toLowerCase() === "css") {
-					saveCssPref(elm, index);
-				} else if (answers.choice.toLowerCase() === "pdf") {
-					execSync(`wkhtmltopdf   --user-style-sheet css/${eanId}/${index}.css  -s A3  ${htmlUrls[index]} download/${eanId}/${index}.pdf`);
-				}
 
-			})
 
 		}
 
@@ -73,7 +87,7 @@ inquirer
 		}
 
 		function pageSrcRefs(page) {
-			return page.map(({attributes}) => attributes.src);
+			return page.map(({ attributes }) => attributes.src);
 		}
 
 		function getCssRef(srcRefs) {
@@ -118,12 +132,12 @@ inquirer
 				strictSSL: false,
 			});
 
-			const options = {agent: httpsAgent}
+			const options = { agent: httpsAgent }
 			const response = await fetch(cssUrl, options);
 			let data = await response.text();
 
 			await postcss([
-				autoprefixer({overrideBrowserslist: ['last 1 version']})])
+				autoprefixer({ overrideBrowserslist: ['last 1 version'] })])
 				.process(data, {
 					from: undefined
 				})
