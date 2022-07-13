@@ -31,11 +31,11 @@ inquirer
 		const editor = sPathName[1];
 		const type = sPathName[2];
 
-
-		const targetJsonUrl = `https://storage.libmanuels.fr/${editor}/${type}/${eanId}/${eanVersion}/META-INF/interactives.json`;
+		//exp: https://storage.libmanuels.fr/Vuibert/manuel/9782311411515/1/META-INF/interactives.json
+		const targetJsonUrl = `https://storage.libmanuels.fr/${editor}/manuel/${eanId}/${eanVersion}/META-INF/interactives.json`;
 
 		const file = {
-			baseUrl: `https://storage.libmanuels.fr/${editor}/${type}/${eanId}/${eanVersion}/OEBPS/`,
+			baseUrl: `https://storage.libmanuels.fr/${editor}/manuel/${eanId}/${eanVersion}/OEBPS/`,
 		}
 
 
